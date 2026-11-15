@@ -18,6 +18,9 @@ const trailingSlashHostURI = '$goodHostURI/';
 const secureHost = 'secure-polaris-server';
 const secureHostURI = 'https://$secureHost';
 const insecureHostURI = 'http://$secureHost';
+// Server on a home network, which does not speak HTTPS
+const httpOnlyHost = 'http-only-polaris-server';
+const httpOnlyHostURI = 'http://$httpOnlyHost';
 
 const compatibleAPIVersion = '{"major": 8, "minor": 0}';
 const incompatibleAPIVersion = '{"major": 5, "minor": 0}';
@@ -44,6 +47,7 @@ class HttpClient extends mocktail.Mock implements http.Client {
   bool _mockSSO = false;
   String? _ssoCodeChallenge;
   final List<SSOCodeExchange> ssoCodeExchanges = [];
+  final List<Uri> requestedURLs = [];
   Duration? _delay;
 
   void mockUnauthorized() {
@@ -75,6 +79,11 @@ class HttpClient extends mocktail.Mock implements http.Client {
 
       final Request request = invocation.positionalArguments[0];
       final String endpoint = request.url.path;
+      requestedURLs.add(request.url);
+
+      if (request.url.host == httpOnlyHost && request.url.scheme == 'https') {
+        throw http.ClientException('Connection refused', request.url);
+      }
 
       if (request.url.host == secureHost && request.url.scheme == 'http') {
         // Like the real HTTP client, only follows redirections of GET requests, and only if asked to
@@ -91,7 +100,7 @@ class HttpClient extends mocktail.Mock implements http.Client {
 
       if (endpoint.startsWith(apiVersionEndpoint)) {
         final String host = request.url.host;
-        if (host == goodHost || host == secureHost) {
+        if (host == goodHost || host == secureHost || host == httpOnlyHost) {
           return http.StreamedResponse(Stream<List<int>>.value(compatibleAPIVersion.codeUnits), 200);
         }
         if (host == incompatibleHost) {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -95,7 +96,34 @@ class Manager extends ChangeNotifier implements ManagerInterface {
 
     _setURL(newURL);
     _setState(State.connecting);
+
+    // Addresses typed without a scheme are tried over HTTPS first, which is how servers exposed
+    // to the internet are reached. Servers on a home network commonly only speak HTTP.
+    final insecureURL = url;
+    if (insecureURL != null && !_hasScheme(newURL)) {
+      final secureURL = insecureURL.replaceFirst('http://', 'https://');
+      final isSecureServer = await _isPolarisServer(secureURL);
+      if (isSecureServer && url == insecureURL && state == State.connecting) {
+        _url = secureURL;
+      }
+    }
+
     return await _tryConnect();
+  }
+
+  Future<bool> _isPolarisServer(String serverURL) async {
+    try {
+      final request = http.Request('GET', Uri.parse(serverURL + apiVersionEndpoint));
+      final response = await httpClient.send(request).timeout(const Duration(seconds: 4));
+      final body = await response.stream.bytesToString().timeout(const Duration(seconds: 4));
+      if (response.statusCode != 200) {
+        return false;
+      }
+      dto.APIVersion.fromJson(jsonDecode(body));
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   void disconnect() {
@@ -218,9 +246,13 @@ class Manager extends ChangeNotifier implements ManagerInterface {
     _url = newURL;
   }
 
+  bool _hasScheme(String url) {
+    return RegExp(r'^https?://', caseSensitive: false).hasMatch(url.trim());
+  }
+
   String _cleanURL(String url) {
     url = url.trim();
-    if (!url.startsWith('http')) {
+    if (!_hasScheme(url)) {
       url = 'http://$url';
     }
     while (url.endsWith('/')) {

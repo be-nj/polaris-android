@@ -235,6 +235,44 @@ void main() {
     expect(getIt<connection.Manager>().url, equals(client.secureHostURI));
   });
 
+  testWidgets('Prefers HTTPS when the host URL has no scheme', (WidgetTester tester) async {
+    await Harness.create();
+
+    await tester.pumpWidget(const PolarisApp());
+
+    await tester.enterText(urlInputField, client.goodHost);
+    await tester.tap(connectButton);
+    await tester.pumpAndSettle();
+    expect(urlInputField, findsNothing);
+    expect(getIt<connection.Manager>().url, equals('https://${client.goodHost}'));
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getString(connection.hostPreferenceKey), equals('https://${client.goodHost}'));
+  });
+
+  testWidgets('Falls back to HTTP when the server does not speak HTTPS', (WidgetTester tester) async {
+    await Harness.create();
+
+    await tester.pumpWidget(const PolarisApp());
+
+    await tester.enterText(urlInputField, client.httpOnlyHost);
+    await tester.tap(connectButton);
+    await tester.pumpAndSettle();
+    expect(urlInputField, findsNothing);
+    expect(getIt<connection.Manager>().url, equals(client.httpOnlyHostURI));
+  });
+
+  testWidgets('Does not connect over HTTPS to servers explicitly reached over HTTP', (WidgetTester tester) async {
+    final harness = await Harness.create();
+
+    await tester.pumpWidget(const PolarisApp());
+
+    await tester.enterText(urlInputField, client.goodHostURI);
+    await tester.tap(connectButton);
+    await tester.pumpAndSettle();
+    expect(getIt<connection.Manager>().url, equals(client.goodHostURI));
+    expect(harness.mockHTTPClient.requestedURLs.where((url) => url.scheme == 'https'), isEmpty);
+  });
+
   testWidgets('Does not change the URL of servers which do not redirect to HTTPS', (WidgetTester tester) async {
     await Harness.create();
 

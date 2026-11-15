@@ -85,7 +85,9 @@ class Manager extends ChangeNotifier {
     final url = preferences.getString(authHostPreferenceKey);
     _token = preferences.getString(tokenPreferenceKey);
     _username = preferences.getString(usernamePreferenceKey);
-    final isSameHost = url == connectionManager.url;
+    // The connection may have moved to HTTPS since the session was saved, when the server redirects to it
+    final isSameHost =
+        url == connectionManager.url || url?.replaceFirst('http://', 'https://') == connectionManager.url;
     final hasToken = _token?.isNotEmpty ?? false;
     final hasUsername = _username?.isNotEmpty ?? false;
     if (!hasToken || !hasUsername || !isSameHost) {
@@ -106,6 +108,7 @@ class Manager extends ChangeNotifier {
       throw Error.unknownError;
     }
 
+    _setHost(connectionManager.url);
     _setState(State.authenticated);
   }
 

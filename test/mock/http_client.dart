@@ -14,6 +14,10 @@ const goodHostURI = 'http://$goodHost';
 const badHostURI = 'http://$badHost';
 const incompatibleHostURI = 'http://$incompatibleHost';
 const trailingSlashHostURI = '$goodHostURI/';
+// Server behind a reverse proxy which redirects plain HTTP requests to HTTPS
+const secureHost = 'secure-polaris-server';
+const secureHostURI = 'https://$secureHost';
+const insecureHostURI = 'http://$secureHost';
 
 const compatibleAPIVersion = '{"major": 8, "minor": 0}';
 const incompatibleAPIVersion = '{"major": 5, "minor": 0}';
@@ -72,13 +76,22 @@ class HttpClient extends mocktail.Mock implements http.Client {
       final Request request = invocation.positionalArguments[0];
       final String endpoint = request.url.path;
 
-      if (_mockUnauthorized) {
+      if (request.url.host == secureHost && request.url.scheme == 'http') {
+        // Like the real HTTP client, only follows redirections of GET requests, and only if asked to
+        if (request.method != 'GET' || !request.followRedirects) {
+          final location = request.url.replace(scheme: 'https').toString();
+          return http.StreamedResponse(Stream<List<int>>.value([]), 308, headers: {'location': location});
+        }
+      }
+
+      // The API version can be read without being signed in
+      if (_mockUnauthorized && !endpoint.startsWith(apiVersionEndpoint)) {
         return http.StreamedResponse(Stream<List<int>>.value([]), 401);
       }
 
       if (endpoint.startsWith(apiVersionEndpoint)) {
         final String host = request.url.host;
-        if (host == goodHost) {
+        if (host == goodHost || host == secureHost) {
           return http.StreamedResponse(Stream<List<int>>.value(compatibleAPIVersion.codeUnits), 200);
         }
         if (host == incompatibleHost) {

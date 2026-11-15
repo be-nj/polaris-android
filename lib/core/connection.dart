@@ -128,8 +128,52 @@ class Manager extends ChangeNotifier implements ManagerInterface {
     }
   }
 
+  /// Servers reached through a reverse proxy commonly redirect plain HTTP requests to HTTPS.
+  /// The HTTP client only follows such redirections for GET requests, so that connecting would
+  /// work while signing in (a POST request) would not. This looks for such a redirection, in
+  /// order to use the HTTPS address from then on. It also avoids sending credentials unencrypted.
+  Future<String?> _findSecureURL(String insecureURL) async {
+    if (!insecureURL.startsWith('http://')) {
+      return null;
+    }
+    try {
+      final request = http.Request('GET', Uri.parse(insecureURL + apiVersionEndpoint));
+      request.followRedirects = false;
+      final response = await httpClient.send(request).timeout(const Duration(seconds: 5));
+      unawaited(response.stream.drain<void>().catchError((_) {}));
+      if (!const [301, 302, 307, 308].contains(response.statusCode)) {
+        return null;
+      }
+      final location = Uri.tryParse(response.headers['location'] ?? '');
+      final isSameServer = location != null && location.scheme == 'https' && location.host == request.url.host;
+      if (!isSameServer) {
+        return null;
+      }
+      // Only trust redirections which keep the path as is, others may lead somewhere unrelated
+      var secureURL = location.replace(query: null, fragment: null).toString();
+      for (final suffix in [apiVersionEndpoint, apiVersionEndpoint.substring(0, apiVersionEndpoint.length - 1)]) {
+        if (secureURL.endsWith(suffix)) {
+          secureURL = secureURL.substring(0, secureURL.length - suffix.length);
+          return secureURL == insecureURL.replaceFirst('http://', 'https://') ? secureURL : null;
+        }
+      }
+    } catch (e) {
+      developer.log("Could not determine whether the server redirects to HTTPS", error: e);
+    }
+    return null;
+  }
+
   Future _tryConnect() async {
     assert(state == State.connecting || state == State.reconnecting);
+
+    final initialURL = url;
+    if (initialURL != null) {
+      final secureURL = await _findSecureURL(initialURL);
+      // The user may have disconnected or connected elsewhere in the meantime
+      if (secureURL != null && url == initialURL && (state == State.connecting || state == State.reconnecting)) {
+        _url = secureURL;
+      }
+    }
 
     dto.APIVersion serverAPIVersion;
     try {

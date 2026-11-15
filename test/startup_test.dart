@@ -2,12 +2,16 @@ import 'harness.dart';
 import 'mock/http_client.dart' as client;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:polaris/core/connection.dart' as connection;
 import 'package:polaris/core/authentication.dart' as authentication;
 import 'package:polaris/core/client/api/v8_dto.dart' as dto;
 import 'package:polaris/main.dart';
 import 'package:polaris/ui/startup/page.dart';
 import 'package:polaris/ui/strings.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+final getIt = GetIt.instance;
 
 final startupPage = find.byType(StartupPage);
 
@@ -195,6 +199,70 @@ void main() {
     await tester.tap(loginButton);
     await tester.pump();
     expect(startupPage, findsNothing);
+  });
+
+  testWidgets('Uses HTTPS when the server redirects to it', (WidgetTester tester) async {
+    await Harness.create();
+
+    await tester.pumpWidget(const PolarisApp());
+
+    await tester.enterText(urlInputField, client.insecureHostURI);
+    await tester.tap(connectButton);
+    await tester.pumpAndSettle();
+    expect(urlInputField, findsNothing);
+
+    final connectionManager = getIt<connection.Manager>();
+    expect(connectionManager.url, equals(client.secureHostURI));
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getString(connection.hostPreferenceKey), equals(client.secureHostURI));
+
+    // Signing in is a POST request, whose redirection the HTTP client would not follow
+    await tester.enterText(usernameInputField, 'good-username');
+    await tester.enterText(passwordInputField, 'good-password');
+    await tester.tap(loginButton);
+    await tester.pump();
+    expect(startupPage, findsNothing);
+  });
+
+  testWidgets('Uses HTTPS when the server redirects to it, without scheme in host URL', (WidgetTester tester) async {
+    await Harness.create();
+
+    await tester.pumpWidget(const PolarisApp());
+
+    await tester.enterText(urlInputField, client.secureHost);
+    await tester.tap(connectButton);
+    await tester.pumpAndSettle();
+    expect(getIt<connection.Manager>().url, equals(client.secureHostURI));
+  });
+
+  testWidgets('Does not change the URL of servers which do not redirect to HTTPS', (WidgetTester tester) async {
+    await Harness.create();
+
+    await tester.pumpWidget(const PolarisApp());
+
+    await tester.enterText(urlInputField, client.goodHostURI);
+    await tester.tap(connectButton);
+    await tester.pumpAndSettle();
+    expect(getIt<connection.Manager>().url, equals(client.goodHostURI));
+  });
+
+  testWidgets('Keeps the session when moving to HTTPS on startup', (WidgetTester tester) async {
+    await Harness.create(preferences: {
+      connection.hostPreferenceKey: client.insecureHostURI,
+      authentication.authHostPreferenceKey: client.insecureHostURI,
+      authentication.tokenPreferenceKey: 'auth-token',
+      authentication.usernamePreferenceKey: 'good-username'
+    });
+
+    await tester.pumpWidget(const PolarisApp());
+    await tester.pumpAndSettle();
+    expect(startupPage, findsNothing);
+
+    expect(getIt<connection.Manager>().url, equals(client.secureHostURI));
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getString(connection.hostPreferenceKey), equals(client.secureHostURI));
+    expect(preferences.getString(authentication.authHostPreferenceKey), equals(client.secureHostURI));
+    expect(preferences.getString(authentication.tokenPreferenceKey), equals('auth-token'));
   });
 
   testWidgets('Re-logins on startup', (WidgetTester tester) async {

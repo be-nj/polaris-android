@@ -16,6 +16,17 @@ final getIt = GetIt.instance;
 
 void noop() {}
 
+/// Tapping a song plays it right away. The songs it is listed with (its album or its directory) follow,
+/// like when playing a record from a given track.
+void playSongWithin(String song, List<String> songs) {
+  final index = songs.indexOf(song);
+  if (index < 0) {
+    getIt<Playlist>().playNow([song]);
+  } else {
+    getIt<Playlist>().playNow(songs, startIndex: index);
+  }
+}
+
 abstract class ContextMenuButton<T> extends StatelessWidget {
   final IconData icon;
   final bool compact;
@@ -57,15 +68,34 @@ abstract class ContextMenuButton<T> extends StatelessWidget {
       icon: compact ? null : icon,
       iconSize: iconSize,
       onSelected: (action) => executeAction(context, action),
-      itemBuilder: (BuildContext context) {
-        return actions.where(isActionPossible).map((action) {
-          final (icon, label) = getActionVisuals(action);
-          return _buildButton(action, icon, label);
-        }).toList();
-      },
+      itemBuilder: (BuildContext context) => _buildButtons(),
       // Manually specify child because default IconButton comes with an excessive minimum size of 48x48
       child: compact ? icon : null,
     );
+  }
+
+  /// Opens this menu next to the widget `context` belongs to (eg. a list entry which was pressed for
+  /// a long time), as an alternative to tapping the button.
+  Future<void> show(BuildContext context) async {
+    final widgetBox = context.findRenderObject();
+    final overlayBox = Navigator.of(context).overlay?.context.findRenderObject();
+    if (widgetBox is! RenderBox || overlayBox is! RenderBox) {
+      return;
+    }
+    // Same location as the button, which is at the end of list entries
+    final anchor = widgetBox.localToGlobal(widgetBox.size.centerRight(Offset.zero), ancestor: overlayBox);
+    final position = RelativeRect.fromSize(anchor & Size.zero, overlayBox.size);
+    final action = await showMenu<T>(context: context, position: position, items: _buildButtons());
+    if (action != null && context.mounted) {
+      executeAction(context, action);
+    }
+  }
+
+  List<PopupMenuItem<T>> _buildButtons() {
+    return actions.where(isActionPossible).map((action) {
+      final (icon, label) = getActionVisuals(action);
+      return _buildButton(action, icon, label);
+    }).toList();
   }
 
   PopupMenuItem<T> _buildButton(T action, IconData icon, String label) {

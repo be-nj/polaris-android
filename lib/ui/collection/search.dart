@@ -150,12 +150,22 @@ Widget _songWidget(BuildContext context, String path) {
             stream: getIt<AudioPlayer>().playerStateStream,
             builder: (context, snapshot) {
               final song = context.watch<dto.Song?>();
+              final contextMenu = SongContextMenuButton(
+                path: path,
+                actions: const [
+                  SongAction.playNow,
+                  SongAction.queueNext,
+                  SongAction.queueLast,
+                  SongAction.songInfo,
+                  SongAction.viewAlbum,
+                  SongAction.viewFolder,
+                  SongAction.togglePin,
+                ],
+              );
               return Material(
                 child: InkWell(
-                  onTap: () {
-                    final Playlist playlist = getIt<Playlist>();
-                    playlist.queueLast([path]);
-                  },
+                  onTap: () => getIt<Playlist>().playNow([path]),
+                  onLongPress: () => contextMenu.show(context),
                   child: ListTile(
                     dense: true,
                     contentPadding: EdgeInsets.zero,
@@ -166,18 +176,7 @@ Widget _songWidget(BuildContext context, String path) {
                     subtitle: song == null
                         ? const Placeholder(width: 100, height: 8)
                         : Text(song.formatArtistsAndDuration(), overflow: TextOverflow.ellipsis),
-                    trailing: SongContextMenuButton(
-                      path: path,
-                      actions: const [
-                        SongAction.playNow,
-                        SongAction.queueNext,
-                        SongAction.queueLast,
-                        SongAction.songInfo,
-                        SongAction.viewAlbum,
-                        SongAction.viewFolder,
-                        SongAction.togglePin,
-                      ],
-                    ),
+                    trailing: contextMenu,
                   ),
                 ),
               );

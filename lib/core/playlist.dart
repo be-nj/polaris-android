@@ -37,6 +37,18 @@ class Playlist {
     }
   }
 
+  /// Replaces the queue with these songs and starts playing, beginning with the song at `startIndex`.
+  Future playNow(List<String> songs, {int startIndex = 0}) async {
+    await clear();
+    await queueLast(songs, autoPlay: false);
+    final int numSongs = _audioSource.length;
+    if (numSongs == 0) {
+      return;
+    }
+    await audioPlayer.seek(Duration.zero, index: startIndex.clamp(0, numSongs - 1));
+    audioPlayer.play();
+  }
+
   Future queueNext(List<String> songs) async {
     final bool wasEmpty = _audioSource.sequence.isEmpty;
     final int insertIndex = wasEmpty ? 0 : 1 + (audioPlayer.currentIndex ?? -1);

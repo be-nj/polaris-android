@@ -2,3 +2,5 @@
 - 🆕 The `Playlist lookahead` setting can now be set as high as 20 or 50 songs.
 - 🆕 Added support for Android Auto. Albums, playlists and files can be browsed and played from the car display, and songs can be requested by voice.
 - 🆕 Added support for single sign-on: when the Polaris server offers single sign-on providers, the login screen has a button to sign in with each of them.
+- 🆕 Tapping a song now plays it right away, followed by the rest of its album or folder. Press a song or folder for a long time to open its menu (`Play Next`, `Play Last`, …).
+- 🆕 Server addresses typed without `https://` are tried over HTTPS first.

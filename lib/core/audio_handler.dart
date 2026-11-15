@@ -186,14 +186,7 @@ class PolarisAudioHandler extends BaseAudioHandler with SeekHandler {
     if (playback == null || playlist == null) {
       return;
     }
-    await playlist.clear();
-    await playlist.queueLast(playback.songs, autoPlay: false);
-    final int numSongs = playlist.audioSource.length;
-    if (numSongs == 0) {
-      return;
-    }
-    await audioPlayer.seek(Duration.zero, index: playback.index.clamp(0, numSongs - 1));
-    audioPlayer.play();
+    await playlist.playNow(playback.songs, startIndex: playback.index);
   }
 
   @override

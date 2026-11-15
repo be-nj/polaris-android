@@ -5,7 +5,6 @@ import 'package:polaris/core/cache/media.dart';
 import 'package:polaris/core/client/api/api_client.dart';
 import 'package:polaris/core/client/api/v8_dto.dart' as dto;
 import 'package:polaris/core/client/app_client.dart';
-import 'package:polaris/core/playlist.dart';
 import 'package:polaris/ui/collection/genre_badge.dart';
 import 'package:polaris/ui/strings.dart';
 import 'package:polaris/ui/utils/artist_links.dart';
@@ -124,11 +123,13 @@ class _AlbumDetailsState extends State<AlbumDetails> {
       ];
     }
 
+    final albumSongs = songs.map((song) => song.path).toList();
     return discs
         .map((discData) => Disc(
               discData,
               discCount: discs.length,
               albumArtwork: widget.albumHeader.artwork,
+              albumSongs: albumSongs,
             ))
         .toList();
   }
@@ -326,8 +327,10 @@ class Disc extends StatelessWidget {
   final DiscData discData;
   final int discCount;
   final String? albumArtwork;
+  final List<String> albumSongs;
 
-  const Disc(this.discData, {required this.discCount, this.albumArtwork, Key? key}) : super(key: key);
+  const Disc(this.discData, {required this.discCount, required this.albumSongs, this.albumArtwork, Key? key})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -353,7 +356,7 @@ class Disc extends StatelessWidget {
       );
     }
 
-    children.addAll(discData.songs.map((song) => Song(song, albumArtwork)));
+    children.addAll(discData.songs.map((song) => Song(song, albumArtwork, albumSongs: albumSongs)));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -366,28 +369,33 @@ class Song extends StatelessWidget {
   final String? albumArtwork;
   final dto.Song song;
 
-  const Song(this.song, this.albumArtwork, {Key? key}) : super(key: key);
+  /// Songs of the album this song is on, which play after it
+  final List<String> albumSongs;
+
+  const Song(this.song, this.albumArtwork, {required this.albumSongs, Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final contextMenu = SongContextMenuButton(
+      path: song.path,
+      actions: const [
+        SongAction.playNow,
+        SongAction.queueNext,
+        SongAction.queueLast,
+        SongAction.songInfo,
+        SongAction.viewFolder,
+        SongAction.togglePin,
+      ],
+    );
     return Material(
       child: InkWell(
-        onTap: () => getIt<Playlist>().queueLast([song.path]),
+        onTap: () => playSongWithin(song.path, albumSongs),
+        onLongPress: () => contextMenu.show(context),
         child: ListTile(
           leading: ListThumbnail(albumArtwork ?? song.artwork),
           title: Text(song.formatTrackNumberAndTitle(), overflow: TextOverflow.ellipsis),
           subtitle: Text(song.formatArtistsAndDuration(), overflow: TextOverflow.ellipsis),
-          trailing: SongContextMenuButton(
-            path: song.path,
-            actions: const [
-              SongAction.playNow,
-              SongAction.queueNext,
-              SongAction.queueLast,
-              SongAction.songInfo,
-              SongAction.viewFolder,
-              SongAction.togglePin,
-            ],
-          ),
+          trailing: contextMenu,
           dense: true,
         ),
       ),

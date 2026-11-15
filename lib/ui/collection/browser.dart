@@ -6,7 +6,6 @@ import 'package:get_it/get_it.dart';
 import 'package:polaris/core/client/api/api_client.dart';
 import 'package:polaris/core/client/api/v8_dto.dart' as dto;
 import 'package:polaris/core/client/app_client.dart';
-import 'package:polaris/core/playlist.dart';
 import 'package:polaris/ui/collection/browser_model.dart';
 import 'package:polaris/ui/strings.dart';
 import 'package:polaris/ui/utils/context_menu.dart';
@@ -193,6 +192,8 @@ class _BrowserLocationState extends State<BrowserLocation> {
 
     late Widget content;
 
+    final songs = entries.where((e) => !e.isDirectory).map((e) => e.path).toList();
+
     content = ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
       itemCount: entries.length,
@@ -201,7 +202,7 @@ class _BrowserLocationState extends State<BrowserLocation> {
         if (entry.isDirectory) {
           return Directory(entry, onTap: () => widget.onDirectoryTapped(entry.path));
         } else {
-          return Song(entry);
+          return Song(entry, directorySongs: songs);
         }
       },
     );
@@ -221,22 +222,24 @@ class Directory extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final contextMenu = DirectoryContextMenuButton(
+      path: entry.path,
+      actions: const [
+        DirectoryAction.playNow,
+        DirectoryAction.queueNext,
+        DirectoryAction.queueLast,
+        DirectoryAction.togglePin,
+      ],
+    );
     return Material(
       child: ListTile(
         onTap: onTap,
+        onLongPress: () => contextMenu.show(context),
         dense: true,
         leading: const Icon(Icons.folder),
         contentPadding: const EdgeInsets.symmetric(horizontal: 24),
         title: Text(entry.formatName()),
-        trailing: DirectoryContextMenuButton(
-          path: entry.path,
-          actions: const [
-            DirectoryAction.playNow,
-            DirectoryAction.queueNext,
-            DirectoryAction.queueLast,
-            DirectoryAction.togglePin,
-          ],
-        ),
+        trailing: contextMenu,
       ),
     );
   }
@@ -245,35 +248,39 @@ class Directory extends StatelessWidget {
 class Song extends StatelessWidget {
   final dto.BrowserEntry entry;
 
-  const Song(this.entry, {Key? key}) : super(key: key);
+  /// Songs of the directory this song is in, which play after it
+  final List<String> directorySongs;
+
+  const Song(this.entry, {required this.directorySongs, Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final contextMenu = SongContextMenuButton(
+      path: entry.path,
+      actions: const [
+        SongAction.playNow,
+        SongAction.queueNext,
+        SongAction.queueLast,
+        SongAction.songInfo,
+        SongAction.viewAlbum,
+        SongAction.togglePin,
+      ],
+    );
     return Material(
       child: ListTile(
         onTap: _onTap,
+        onLongPress: () => contextMenu.show(context),
         dense: true,
         leading: const Icon(Icons.audio_file),
         contentPadding: const EdgeInsets.symmetric(horizontal: 24),
         title: Text(entry.formatName(), overflow: TextOverflow.ellipsis),
-        trailing: SongContextMenuButton(
-          path: entry.path,
-          actions: const [
-            SongAction.playNow,
-            SongAction.queueNext,
-            SongAction.queueLast,
-            SongAction.songInfo,
-            SongAction.viewAlbum,
-            SongAction.togglePin,
-          ],
-        ),
+        trailing: contextMenu,
       ),
     );
   }
 
   void _onTap() {
-    final Playlist playlist = getIt<Playlist>();
-    playlist.queueLast([entry.path]);
+    playSongWithin(entry.path, directorySongs);
   }
 }
 

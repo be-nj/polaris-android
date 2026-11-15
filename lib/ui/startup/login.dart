@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' hide ConnectionState;
 import 'package:get_it/get_it.dart';
 import 'package:polaris/core/authentication.dart' as authentication;
+import 'package:polaris/core/client/api/v8_dto.dart' as dto;
 import 'package:polaris/core/connection.dart' as connection;
 import 'package:polaris/ui/strings.dart';
 import 'package:provider/provider.dart';
@@ -18,10 +19,22 @@ class _LoginFormState extends State<LoginForm> {
   final _usernameEditingController = TextEditingController();
   final _passwordEditingController = TextEditingController();
   final authentication.Manager _authenticationManager = getIt<authentication.Manager>();
+  List<dto.SSOProvider> _ssoProviders = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _authenticationManager.getSSOProviders().then((providers) {
+      if (mounted && providers.isNotEmpty) {
+        setState(() => _ssoProviders = providers);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Form(
+        child: SingleChildScrollView(
       child: Column(
         children: [
           TextFormField(
@@ -47,17 +60,36 @@ class _LoginFormState extends State<LoginForm> {
                 if (authenticationManager.state != authentication.State.unauthenticated) {
                   return const CircularProgressIndicator();
                 }
-                return Row(
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    TextButton(onPressed: _onDisconnectPressed, child: const Text(disconnectButtonLabel)),
-                    const Spacer(),
-                    ElevatedButton(onPressed: _onLoginPressed, child: const Text(loginButtonLabel)),
+                    Row(
+                      children: [
+                        TextButton(onPressed: _onDisconnectPressed, child: const Text(disconnectButtonLabel)),
+                        const Spacer(),
+                        ElevatedButton(onPressed: _onLoginPressed, child: const Text(loginButtonLabel)),
+                      ],
+                    ),
+                    if (_ssoProviders.isNotEmpty) const SizedBox(height: 16),
+                    for (final provider in _ssoProviders)
+                      OutlinedButton(
+                        onPressed: () => _onSSOPressed(provider),
+                        child: Text(ssoButtonLabel(provider.displayName)),
+                      ),
                   ],
                 );
               })),
         ],
       ),
-    );
+    ));
+  }
+
+  Future _onSSOPressed(dto.SSOProvider provider) async {
+    try {
+      await _authenticationManager.authenticateWithSSO(provider);
+    } on authentication.Error catch (e) {
+      _handleError(e);
+    }
   }
 
   Future _onDisconnectPressed() async {
@@ -75,6 +107,9 @@ class _LoginFormState extends State<LoginForm> {
   }
 
   void _handleError(authentication.Error error) {
+    if (!mounted) {
+      return;
+    }
     ScaffoldMessenger.of(context).removeCurrentSnackBar();
 
     String errorText;
@@ -84,6 +119,9 @@ class _LoginFormState extends State<LoginForm> {
         break;
       case authentication.Error.incorrectCredentials:
         errorText = errorIncorrectCredentials;
+        break;
+      case authentication.Error.ssoFailed:
+        errorText = errorSSOFailed;
         break;
       case authentication.Error.requestFailed:
         errorText = errorRequestFailed;

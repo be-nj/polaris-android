@@ -4,6 +4,8 @@ import 'package:http/http.dart';
 import 'package:mocktail/mocktail.dart' as mocktail;
 import 'package:polaris/core/client/api/v8_dto.dart';
 import 'package:polaris/core/client/api/v8_client.dart';
+import 'package:polaris/core/client/guest_client.dart' show ssoProvidersEndpoint, ssoTokenEndpoint;
+import 'package:polaris/core/sso.dart';
 
 const goodHost = 'my-polaris-server';
 const badHost = 'not-a-polaris-server';
@@ -16,6 +18,10 @@ const trailingSlashHostURI = '$goodHostURI/';
 const compatibleAPIVersion = '{"major": 8, "minor": 0}';
 const incompatibleAPIVersion = '{"major": 5, "minor": 0}';
 const authorization = '{"username": "test-user", "token": "0xDEADBEEF", "is_admin": false}';
+const ssoAuthorization = '{"username": "sso-user", "token": "0xC0FFEE", "is_admin": false}';
+const ssoProviderName = 'Example SSO';
+const ssoLoginURL = '/api/oidc/example/start';
+const ssoCode = 'single-use-code';
 
 const rootDirectoryName = 'root';
 const heronDirectoryName = 'Heron';
@@ -31,10 +37,23 @@ const fallInwardsFilePath = '$aegeusDirectoryPath/$fallInwardsSongName.mp3';
 
 class HttpClient extends mocktail.Mock implements http.Client {
   bool _mockUnauthorized = false;
+  bool _mockSSO = false;
+  String? _ssoCodeChallenge;
+  final List<SSOCodeExchange> ssoCodeExchanges = [];
   Duration? _delay;
 
   void mockUnauthorized() {
     _mockUnauthorized = true;
+  }
+
+  /// Makes the server offer single sign-on, like servers which support it.
+  void mockSSO() {
+    _mockSSO = true;
+  }
+
+  /// What the server remembers from the sign-in started in the browser.
+  void setSSOCodeChallenge(String codeChallenge) {
+    _ssoCodeChallenge = codeChallenge;
   }
 
   void setNetworkDelay(Duration delay) {
@@ -68,6 +87,19 @@ class HttpClient extends mocktail.Mock implements http.Client {
         if (host == badHost) {
           return http.StreamedResponse(Stream<List<int>>.value([]), 404);
         }
+      } else if (endpoint == ssoProvidersEndpoint && _mockSSO) {
+        final providers = [SSOProvider(name: 'example', displayName: ssoProviderName, loginURL: ssoLoginURL)];
+        return http.StreamedResponse(Stream<List<int>>.value(utf8.encode(jsonEncode(providers))), 200);
+      } else if (endpoint == ssoTokenEndpoint && _mockSSO) {
+        final exchange = SSOCodeExchange.fromJson(jsonDecode(request.body));
+        ssoCodeExchanges.add(exchange);
+        // Like the server, only accepts the code along with the secret behind the challenge
+        final isValid = exchange.code == ssoCode && makeCodeChallenge(exchange.codeVerifier) == _ssoCodeChallenge;
+        _ssoCodeChallenge = null;
+        if (!isValid) {
+          return http.StreamedResponse(Stream<List<int>>.value([]), 400);
+        }
+        return http.StreamedResponse(Stream<List<int>>.value(ssoAuthorization.codeUnits), 200);
       } else if (endpoint.startsWith(loginEndpoint)) {
         return http.StreamedResponse(Stream<List<int>>.value(authorization.codeUnits), 200);
       } else if (endpoint.startsWith(browseEndpoint)) {

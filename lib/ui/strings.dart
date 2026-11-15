@@ -9,6 +9,7 @@ const errorUnknown = 'An unknown error occurred.';
 const errorAlreadyConnecting = 'Please wait while the connection is being established.';
 const errorAlreadyAuthenticating = 'Please wait while the authentication is in progress.';
 const errorIncorrectCredentials = 'Incorrect username or password.';
+const errorSSOFailed = 'Single sign-on could not be completed.';
 const retryButtonLabel = 'RETRY';
 
 // Startup
@@ -18,6 +19,7 @@ const passwordFieldLabel = 'Password';
 const connectButtonLabel = 'CONNECT';
 const disconnectButtonLabel = 'DISCONNECT';
 const loginButtonLabel = 'LOGIN';
+String ssoButtonLabel(String providerName) => 'SIGN IN WITH ${providerName.toUpperCase()}';
 const offlineModeButtonLabel = 'BROWSE OFFLINE';
 
 // Media browser (eg. Android Auto)

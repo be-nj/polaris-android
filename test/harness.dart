@@ -1,4 +1,5 @@
 import 'package:flutter_settings_screens/flutter_settings_screens.dart';
+import 'mock/browser.dart' as mock;
 import 'mock/http_client.dart' as mock;
 import 'mock/media_cache.dart' as mock;
 import 'mock/pin.dart' as pin;
@@ -28,8 +29,9 @@ final getIt = GetIt.instance;
 class Harness {
   final mock.HttpClient mockHTTPClient;
   final CollectionCache collectionCache;
+  final mock.Browser mockBrowser;
 
-  Harness(this.mockHTTPClient, this.collectionCache);
+  Harness(this.mockHTTPClient, this.collectionCache, this.mockBrowser);
 
   static final Map<String, Object> reconnectPreferences = {
     connection.hostPreferenceKey: mock.goodHostURI,
@@ -54,9 +56,11 @@ class Harness {
     final collectionCache = CollectionCache(Collection());
     final mockHttpClient = mock.HttpClient();
     final connectionManager = connection.Manager(httpClient: mockHttpClient);
+    final mockBrowser = mock.Browser();
     final authenticationManager = authentication.Manager(
       httpClient: mockHttpClient,
       connectionManager: connectionManager,
+      browser: mockBrowser,
     );
     final apiClient = APIClient(
       httpClient: mockHttpClient,
@@ -139,6 +143,6 @@ class Harness {
     audioPlayer.setAudioSource(playlist.audioSource);
     savestateManager.init();
 
-    return Harness(mockHttpClient, collectionCache);
+    return Harness(mockHttpClient, collectionCache, mockBrowser);
   }
 }

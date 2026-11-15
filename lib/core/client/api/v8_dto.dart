@@ -31,6 +31,38 @@ class Credentials {
       };
 }
 
+class SSOProvider {
+  String name, displayName, loginURL;
+  SSOProvider({required this.name, required this.displayName, required this.loginURL});
+  factory SSOProvider.fromJson(Map<String, dynamic> json) {
+    return SSOProvider(
+      name: json['name'],
+      displayName: json['display_name'],
+      loginURL: json['login_url'],
+    );
+  }
+  Map<String, dynamic> toJson() => <String, String>{
+        'name': name,
+        'display_name': displayName,
+        'login_url': loginURL,
+      };
+}
+
+class SSOCodeExchange {
+  String code, codeVerifier;
+  SSOCodeExchange({required this.code, required this.codeVerifier});
+  factory SSOCodeExchange.fromJson(Map<String, dynamic> json) {
+    return SSOCodeExchange(
+      code: json['code'],
+      codeVerifier: json['code_verifier'],
+    );
+  }
+  Map<String, dynamic> toJson() => <String, String>{
+        'code': code,
+        'code_verifier': codeVerifier,
+      };
+}
+
 class BrowserEntry {
   String path;
   bool isDirectory;

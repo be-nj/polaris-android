@@ -6,6 +6,7 @@ import 'package:polaris/core/client/api/api_client.dart';
 import 'package:polaris/core/client/api/v8_dto.dart';
 import 'package:polaris/core/client/guest_client.dart';
 import 'package:polaris/core/connection.dart' as connection;
+import 'package:polaris/core/sso.dart' as sso;
 import 'package:shared_preferences/shared_preferences.dart';
 
 const String authHostPreferenceKey = "polaris_auth_host";
@@ -15,6 +16,7 @@ const String usernamePreferenceKey = "polaris_auth_username";
 enum Error {
   authenticationAlreadyInProgress,
   incorrectCredentials,
+  ssoFailed,
   requestFailed,
   requestTimeout,
   unknownError,
@@ -48,6 +50,7 @@ enum State {
 class Manager extends ChangeNotifier {
   final http.Client httpClient;
   final connection.Manager connectionManager;
+  final sso.Browser browser;
 
   State _state = State.unauthenticated;
   State get state => _state;
@@ -59,7 +62,8 @@ class Manager extends ChangeNotifier {
   Manager({
     required this.httpClient,
     required this.connectionManager,
-  }) {
+    sso.Browser? browser,
+  }) : browser = browser ?? sso.SystemBrowser() {
     connectionManager.addListener(() async => await _onConnectionStateChanged());
     _onConnectionStateChanged();
   }
@@ -127,6 +131,72 @@ class Manager extends ChangeNotifier {
     _setUsername(newUsername);
     _setToken(authorization.token);
     _setState(State.authenticated);
+  }
+
+  /// Lists the single sign-on providers offered by the server, if any.
+  Future<List<SSOProvider>> getSSOProviders() async {
+    try {
+      final guestClient = GuestClient(connectionManager: connectionManager, httpClient: httpClient);
+      return await guestClient.getSSOProviders();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  /// Signs in through a single sign-on provider, using the web browser of the device.
+  /// Returns false when the user left the browser without signing in.
+  ///
+  /// The browser cannot hand a session over to this app directly. Instead, the server ends the sign-in
+  /// by opening a link to this app which contains a single-use code. This code can only be redeemed
+  /// along with the code verifier, which never leaves this app.
+  Future<bool> authenticateWithSSO(SSOProvider provider) async {
+    if (_state != State.unauthenticated) {
+      throw Error.authenticationAlreadyInProgress;
+    }
+    final host = connectionManager.url;
+    if (host == null || !provider.loginURL.startsWith('/')) {
+      throw Error.ssoFailed;
+    }
+
+    _setState(State.authenticating);
+    Authorization authorization;
+    try {
+      final codeVerifier = sso.makeCodeVerifier();
+      final codeChallenge = sso.makeCodeChallenge(codeVerifier);
+      final loginURL = Uri.parse(host + provider.loginURL).replace(queryParameters: {'code_challenge': codeChallenge});
+
+      final String callbackURL;
+      try {
+        callbackURL = await browser.authenticate(loginURL.toString());
+      } on sso.CancelledException {
+        _setState(State.unauthenticated);
+        return false;
+      }
+
+      final code = sso.readCode(callbackURL);
+      if (code == null || connectionManager.url != host) {
+        _setState(State.unauthenticated);
+        throw Error.ssoFailed;
+      }
+
+      final guestClient = GuestClient(connectionManager: connectionManager, httpClient: httpClient);
+      authorization = await guestClient.redeemSSOCode(code, codeVerifier);
+    } on Error {
+      rethrow;
+    } on APIError catch (e) {
+      _setState(State.unauthenticated);
+      throw e == APIError.requestFailed ? Error.ssoFailed : e.toAuthenticationError();
+    } catch (e) {
+      developer.log("Error during single sign-on", error: e);
+      _setState(State.unauthenticated);
+      throw Error.ssoFailed;
+    }
+
+    _setHost(host);
+    _setUsername(authorization.username);
+    _setToken(authorization.token);
+    _setState(State.authenticated);
+    return true;
   }
 
   bool isAuthenticated() {

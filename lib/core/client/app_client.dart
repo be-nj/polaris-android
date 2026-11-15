@@ -11,6 +11,7 @@ import 'package:polaris/core/media_item.dart';
 
 abstract class AppClientInterface {
   APIClientInterface? get apiClient;
+  Future<List<dto.BrowserEntry>> browse(String path, {bool useCache = true});
   Future<dto.SongList> flatten(String path);
 }
 
@@ -39,6 +40,7 @@ class AppClient implements AppClientInterface {
     return null;
   }
 
+  @override
   Future<List<dto.BrowserEntry>> browse(String path, {bool useCache = true}) async {
     final String host = _getHost();
 

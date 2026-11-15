@@ -5,7 +5,9 @@ import 'package:polaris/core/cache/media.dart';
 import 'package:polaris/core/client/api/v8_dto.dart' as dto;
 import 'package:polaris/core/client/app_client.dart';
 import 'package:polaris/core/connection.dart' as connection;
+import 'package:polaris/core/media_browser.dart';
 import 'package:polaris/core/media_item.dart';
+import 'package:polaris/core/playlist.dart';
 import 'package:rxdart/rxdart.dart';
 
 Future<PolarisAudioHandler> initAudioService({
@@ -33,6 +35,13 @@ class PolarisAudioHandler extends BaseAudioHandler with SeekHandler {
   final AppClient appClient;
 
   final audioPlayer = AudioPlayer();
+  late final MediaBrowser _mediaBrowser = MediaBrowser(
+    connectionManager: connectionManager,
+    collectionCache: collectionCache,
+    appClient: appClient,
+  );
+  Playlist? _playlist;
+  final BehaviorSubject<Map<String, dynamic>> _rootChildrenChanges = BehaviorSubject.seeded(<String, dynamic>{});
   final BehaviorSubject<dto.Song?> _currentSong = BehaviorSubject.seeded(null);
   Stream<dto.Song?> get currentSong => _currentSong.stream;
 
@@ -43,6 +52,15 @@ class PolarisAudioHandler extends BaseAudioHandler with SeekHandler {
   }) {
     _forwardPlaybackState();
     _forwardSongMetadata();
+    // What can be browsed depends on being connected to a server. Media browsers may ask
+    // for content before the connection is established, and need to be told to ask again.
+    connectionManager.addListener(() => _rootChildrenChanges.add(<String, dynamic>{}));
+  }
+
+  /// Sets the playlist to use for playback requests that come from outside of
+  /// the app (eg. Android Auto).
+  void setPlaylist(Playlist playlist) {
+    _playlist = playlist;
   }
 
   void _forwardSongMetadata() {
@@ -129,6 +147,54 @@ class PolarisAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> skipToNext() => audioPlayer.seekToNext();
+
+  @override
+  Future<List<MediaItem>> getChildren(String parentMediaId, [Map<String, dynamic>? options]) {
+    return _mediaBrowser.getChildren(parentMediaId);
+  }
+
+  @override
+  ValueStream<Map<String, dynamic>> subscribeToChildren(String parentMediaId) {
+    if (parentMediaId == AudioService.browsableRootId) {
+      return _rootChildrenChanges;
+    }
+    return super.subscribeToChildren(parentMediaId);
+  }
+
+  @override
+  Future<List<MediaItem>> search(String query, [Map<String, dynamic>? extras]) {
+    return _mediaBrowser.search(query);
+  }
+
+  @override
+  Future<void> playFromMediaId(String mediaId, [Map<String, dynamic>? extras]) async {
+    await _startPlayback(await _mediaBrowser.getPlayback(mediaId));
+  }
+
+  @override
+  Future<void> playFromSearch(String query, [Map<String, dynamic>? extras]) async {
+    // Voice commands that do not name anything to play (eg. "play music") come with an empty query
+    if (query.trim().isEmpty) {
+      audioPlayer.play();
+      return;
+    }
+    await _startPlayback(await _mediaBrowser.getSearchPlayback(query));
+  }
+
+  Future<void> _startPlayback(MediaBrowserPlayback? playback) async {
+    final Playlist? playlist = _playlist;
+    if (playback == null || playlist == null) {
+      return;
+    }
+    await playlist.clear();
+    await playlist.queueLast(playback.songs, autoPlay: false);
+    final int numSongs = playlist.audioSource.length;
+    if (numSongs == 0) {
+      return;
+    }
+    await audioPlayer.seek(Duration.zero, index: playback.index.clamp(0, numSongs - 1));
+    audioPlayer.play();
+  }
 
   @override
   Future<void> skipToPrevious() => audioPlayer.seekToPrevious();

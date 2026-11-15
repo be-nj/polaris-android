@@ -102,6 +102,7 @@ Future _registerSingletons() async {
     appClient: appClient,
     audioPlayer: audioPlayer,
   );
+  audioHandler.setPlaylist(playlist);
   final savestateManager = savestate.Manager(
     connectionManager: connectionManager,
     collectionCache: collectionCache,

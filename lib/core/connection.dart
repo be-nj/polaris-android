@@ -12,6 +12,7 @@ const String hostPreferenceKey = "polaris_server_url";
 abstract class ManagerInterface {
   String? get url;
   int? get apiVersion;
+  bool isConnected();
 }
 
 enum Error {
@@ -101,6 +102,7 @@ class Manager extends ChangeNotifier implements ManagerInterface {
     _setState(State.disconnected);
   }
 
+  @override
   bool isConnected() {
     return state == State.connected;
   }

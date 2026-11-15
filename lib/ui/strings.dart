@@ -20,6 +20,12 @@ const disconnectButtonLabel = 'DISCONNECT';
 const loginButtonLabel = 'LOGIN';
 const offlineModeButtonLabel = 'BROWSE OFFLINE';
 
+// Media browser (eg. Android Auto)
+const mediaBrowserRecentAlbums = 'Recently Added';
+const mediaBrowserRandomAlbums = 'Random Albums';
+const mediaBrowserPlaylists = 'Playlists';
+const mediaBrowserFiles = 'Files';
+
 // Collection tabs
 const tabFiles = 'FILES';
 const tabAlbums = 'ALBUMS';

@@ -102,5 +102,8 @@ class AppClient implements AppClientInterface {
   APIClientInterface? get apiClient => _apiClient;
 
   @override
+  Future<List<BrowserEntry>> browse(String path, {bool useCache = true}) async => [];
+
+  @override
   Future<SongList> flatten(String path) async => SongList(paths: [], firstSongs: []);
 }

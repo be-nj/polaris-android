@@ -158,6 +158,9 @@ class Album extends AlbumHeader {
 
 class ArtistHeader {
   String name;
+
+  /// Picture of the artist, on servers which have one
+  String? artwork;
   int numAlbumsAsPerformer;
   int numAlbumsAsAdditionalPerformer;
   int numAlbumsAsComposer;
@@ -167,6 +170,7 @@ class ArtistHeader {
 
   ArtistHeader({
     required this.name,
+    this.artwork,
     required this.numAlbumsAsPerformer,
     required this.numAlbumsAsAdditionalPerformer,
     required this.numAlbumsAsComposer,
@@ -178,6 +182,7 @@ class ArtistHeader {
   factory ArtistHeader.fromJson(Map<String, dynamic> json) {
     return ArtistHeader(
       name: json['name'],
+      artwork: json['artwork'],
       numAlbumsAsPerformer: json['num_albums_as_performer'],
       numAlbumsAsAdditionalPerformer: json['num_albums_as_performer'],
       numAlbumsAsComposer: json['num_albums_as_composer'],
@@ -193,6 +198,7 @@ class Artist extends ArtistHeader {
 
   Artist({
     required name,
+    artwork,
     required numAlbumsAsPerformer,
     required numAlbumsAsAdditionalPerformer,
     required numAlbumsAsComposer,
@@ -202,6 +208,7 @@ class Artist extends ArtistHeader {
     required this.albums,
   }) : super(
           name: name,
+          artwork: artwork,
           numAlbumsAsPerformer: numAlbumsAsPerformer,
           numAlbumsAsAdditionalPerformer: numAlbumsAsAdditionalPerformer,
           numAlbumsAsComposer: numAlbumsAsComposer,
@@ -214,6 +221,7 @@ class Artist extends ArtistHeader {
     final header = ArtistHeader.fromJson(json);
     return Artist(
       name: header.name,
+      artwork: header.artwork,
       numAlbumsAsPerformer: header.numAlbumsAsPerformer,
       numAlbumsAsAdditionalPerformer: header.numAlbumsAsAdditionalPerformer,
       numAlbumsAsComposer: header.numAlbumsAsComposer,

@@ -6,6 +6,7 @@ import 'package:polaris/core/connection.dart' as connection;
 import 'package:polaris/ui/pages_model.dart';
 import 'package:polaris/ui/strings.dart';
 import 'package:polaris/ui/utils/error_message.dart';
+import 'package:polaris/ui/utils/thumbnail.dart';
 
 final getIt = GetIt.instance;
 
@@ -141,14 +142,7 @@ class _ArtistsListState extends State<ArtistsList> {
           onTap: onTap,
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 32),
-            leading: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Theme.of(context).textTheme.labelSmall?.color?.withValues(alpha: 0.1),
-              ),
-              child: const Icon(Icons.person),
-            ),
+            leading: ArtistThumbnail(artist.artwork),
             title: Text(
               artist.name,
               overflow: TextOverflow.ellipsis,

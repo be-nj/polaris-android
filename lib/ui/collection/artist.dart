@@ -8,6 +8,7 @@ import 'package:polaris/ui/collection/album_grid.dart';
 import 'package:polaris/ui/collection/genre_badge.dart';
 import 'package:polaris/ui/strings.dart';
 import 'package:polaris/ui/utils/error_message.dart';
+import 'package:polaris/ui/utils/thumbnail.dart';
 
 final getIt = GetIt.instance;
 
@@ -116,7 +117,16 @@ class _ArtistState extends State<Artist> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.artistName),
+        title: Row(
+          children: [
+            if (_artist?.artwork != null)
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: ArtistThumbnail(_artist?.artwork),
+              ),
+            Flexible(child: Text(widget.artistName, overflow: TextOverflow.ellipsis)),
+          ],
+        ),
         bottom: TabBar(
           tabs: getApplicableTabs()
               .map((t) => Tab(

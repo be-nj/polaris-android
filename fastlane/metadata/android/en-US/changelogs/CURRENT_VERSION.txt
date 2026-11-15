@@ -4,3 +4,4 @@
 - 🆕 Added support for single sign-on: when the Polaris server offers single sign-on providers, the login screen has a button to sign in with each of them.
 - 🆕 Tapping a song now plays it right away, followed by the rest of its album or folder. Press a song or folder for a long time to open its menu (`Play Next`, `Play Last`, …).
 - 🆕 Server addresses typed without `https://` are tried over HTTPS first.
+- 🆕 Artists are shown with their picture, when the Polaris server provides one.

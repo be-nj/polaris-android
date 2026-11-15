@@ -29,8 +29,21 @@ String playlistEndpoint(String name) => '/api/playlist/${Uri.encodeComponent(nam
 String randomEndpoint({required int seed, required int offset}) => '/api/albums/random?seed=$seed&offset=$offset';
 String recentEndpoint({required int offset}) => '/api/albums/recent?offset=$offset';
 String searchEndpoint(String query) => '/api/search/${Uri.encodeComponent(query)}';
-String thumbnailEndpoint(String path, dto.ThumbnailSize size) =>
-    '/api/thumbnail/${Uri.encodeComponent(path)}?size=${size.name}&pad=false';
+String artistThumbnailEndpoint(String name, dto.ThumbnailSize size) =>
+    '/api/artist/${Uri.encodeComponent(name)}/thumbnail?size=${size.name}&pad=false';
+
+// Images are downloaded and cached by their path in the collection. Pictures of artists
+// which the server looks up online have no such path, so they go by this prefix followed
+// by the name of the artist.
+const artistImagePathPrefix = 'artist-image:';
+String artistImagePath(String artistName) => '$artistImagePathPrefix$artistName';
+
+String thumbnailEndpoint(String path, dto.ThumbnailSize size) {
+  if (path.startsWith(artistImagePathPrefix)) {
+    return artistThumbnailEndpoint(path.substring(artistImagePathPrefix.length), size);
+  }
+  return '/api/thumbnail/${Uri.encodeComponent(path)}?size=${size.name}&pad=false';
+}
 
 class V8Client extends BaseHttpClient implements APIClientInterface {
   final authentication.Manager authenticationManager;

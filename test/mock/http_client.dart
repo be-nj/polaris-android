@@ -22,7 +22,7 @@ const insecureHostURI = 'http://$secureHost';
 const httpOnlyHost = 'http-only-polaris-server';
 const httpOnlyHostURI = 'http://$httpOnlyHost';
 
-const compatibleAPIVersion = '{"major": 8, "minor": 0}';
+const compatibleAPIVersion = '{"major": 8, "minor": 4}';
 const incompatibleAPIVersion = '{"major": 5, "minor": 0}';
 const authorization = '{"username": "test-user", "token": "0xDEADBEEF", "is_admin": false}';
 const ssoAuthorization = '{"username": "sso-user", "token": "0xC0FFEE", "is_admin": false}';
@@ -36,6 +36,12 @@ const aegeusDirectoryName = 'Aegeus';
 const rootDirectoryPath = rootDirectoryName;
 const heronDirectoryPath = '$rootDirectoryName/$heronDirectoryName';
 const aegeusDirectoryPath = '$heronDirectoryPath/$aegeusDirectoryName';
+
+// The server has a picture of this artist, and of nobody else
+const portrayedArtistName = 'Heron';
+// Smallest valid PNG image: a single transparent pixel
+final List<int> artistPicture = base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==');
 
 const labyrinthSongName = 'Labyrinth';
 const fallInwardsSongName = 'Falling Inwards';
@@ -130,6 +136,12 @@ class HttpClient extends mocktail.Mock implements http.Client {
         if (files != null) {
           final String payload = jsonEncode(files);
           return http.StreamedResponse(Stream<List<int>>.value(payload.codeUnits), 200);
+        }
+      } else if (request.url.pathSegments.length == 4 &&
+          request.url.pathSegments[1] == 'artist' &&
+          request.url.pathSegments[3] == 'thumbnail') {
+        if (request.url.pathSegments[2] == portrayedArtistName) {
+          return http.StreamedResponse(Stream<List<int>>.value(artistPicture), 200);
         }
       } else if (endpoint.startsWith(songsEndpoint)) {
         final songBatch = SongBatchRequest.fromJson(jsonDecode(request.body));

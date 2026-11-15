@@ -66,6 +66,9 @@ class Manager extends ChangeNotifier implements ManagerInterface {
   @override
   int? get apiVersion => _apiVersion;
 
+  int? _apiMinorVersion;
+  int? get apiMinorVersion => _apiMinorVersion;
+
   State? _previousState;
   State? get previousState => _previousState;
 
@@ -220,6 +223,7 @@ class Manager extends ChangeNotifier implements ManagerInterface {
       throw Error.unsupportedAPIVersion;
     }
     _apiVersion = serverAPIVersion.major;
+    _apiMinorVersion = serverAPIVersion.minor;
 
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? currentURL = url;

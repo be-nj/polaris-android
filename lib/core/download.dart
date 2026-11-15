@@ -52,7 +52,8 @@ class Manager {
 
     final job = _ImageJob(imageData);
     _imageJobs[(path, size)] = job;
-    job.imageData.whenComplete(() => _imageJobs.remove(job));
+    // Whoever asked for the image deals with a failed download, not this bookkeeping
+    job.imageData.whenComplete(() => _imageJobs.remove(job)).ignore();
 
     return job.imageData;
   }

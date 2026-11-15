@@ -119,10 +119,10 @@ class _ArtistState extends State<Artist> with TickerProviderStateMixin {
       appBar: AppBar(
         title: Row(
           children: [
-            if (_artist?.artwork != null)
+            if (_artist != null && (_artist?.artwork != null || ArtistThumbnail.serverFindsPictures()))
               Padding(
                 padding: const EdgeInsets.only(right: 12),
-                child: ArtistThumbnail(_artist?.artwork),
+                child: ArtistThumbnail(_artist?.artwork, artistName: widget.artistName),
               ),
             Flexible(child: Text(widget.artistName, overflow: TextOverflow.ellipsis)),
           ],

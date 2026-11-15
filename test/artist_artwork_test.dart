@@ -26,7 +26,7 @@ final Uint8List transparentPixel =
     base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
 
 void main() {
-  setUpAll(() => registerFallbackValue(ArtworkSize.tiny));
+  setUpAll(() => registerFallbackValue(ArtworkSize.small));
 
   test('Reads pictures of artists', () {
     final artist = dto.ArtistHeader.fromJson({...artistJson, 'artwork': 'music/Khemmis/artist.jpg'});
@@ -60,7 +60,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.person), findsOneWidget);
     expect(find.byType(Image), findsNothing);
-    verify(() => client.getImage('music/Nobody/artist.jpg', ArtworkSize.tiny)).called(1);
+    verify(() => client.getImage('music/Nobody/artist.jpg', ArtworkSize.small)).called(1);
   });
 
   testWidgets('Artists with a picture are shown with it', (WidgetTester tester) async {

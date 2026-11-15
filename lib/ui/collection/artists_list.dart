@@ -142,7 +142,7 @@ class _ArtistsListState extends State<ArtistsList> {
           onTap: onTap,
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 32),
-            leading: ArtistThumbnail(artist.artwork),
+            leading: ArtistThumbnail(artist.artwork, artistName: artist.name),
             title: Text(
               artist.name,
               overflow: TextOverflow.ellipsis,

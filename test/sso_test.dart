@@ -1,6 +1,7 @@
 import 'harness.dart';
 import 'mock/http_client.dart' as client;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:polaris/core/authentication.dart' as authentication;
 import 'package:polaris/core/connection.dart' as connection;
@@ -16,8 +17,12 @@ final ssoButton = find.widgetWithText(OutlinedButton, ssoButtonLabel(client.ssoP
 
 const connectedPreferences = {connection.hostPreferenceKey: client.goodHostURI};
 
-Future<Harness> openLoginScreen(WidgetTester tester, {bool serverSupportsSSO = true}) async {
-  final harness = await Harness.create(preferences: connectedPreferences);
+Future<Harness> openLoginScreen(
+  WidgetTester tester, {
+  bool serverSupportsSSO = true,
+  Map<String, Object> preferences = connectedPreferences,
+}) async {
+  final harness = await Harness.create(preferences: preferences);
   if (serverSupportsSSO) {
     harness.mockHTTPClient.mockSSO();
   }
@@ -135,10 +140,41 @@ void main() {
       await startSignIn(tester, harness);
       harness.mockBrowser.completeSignIn(callbackURL);
       await tester.pump();
-      expect(find.widgetWithText(SnackBar, errorSSOFailed), findsOneWidget, reason: callbackURL);
+      expect(find.textContaining(errorSSOFailed), findsOneWidget, reason: callbackURL);
+      expect(find.textContaining('unexpected link'), findsOneWidget, reason: callbackURL);
+      // The message does not disclose the code
+      expect(find.textContaining(client.ssoCode), findsNothing, reason: callbackURL);
       expect(ssoButton, findsOneWidget, reason: callbackURL);
       expect(harness.mockHTTPClient.ssoCodeExchanges, isEmpty, reason: callbackURL);
     }
+  });
+
+  testWidgets('Reports errors of the web browser', (WidgetTester tester) async {
+    final harness = await openLoginScreen(tester);
+    await startSignIn(tester, harness);
+
+    harness.mockBrowser.failSignIn(PlatformException(code: 'FAILED', message: 'Authentication failed with code: 2'));
+    await tester.pump();
+
+    expect(find.textContaining('the web browser reported an error: FAILED, Authentication failed with code: 2'),
+        findsOneWidget);
+    expect(ssoButton, findsOneWidget);
+    expect(harness.mockHTTPClient.ssoCodeExchanges, isEmpty);
+  });
+
+  testWidgets('Signs in with servers which redirect to HTTPS', (WidgetTester tester) async {
+    // The user typed the address of the server without `https://`, which the server redirects to
+    final harness = await openLoginScreen(tester, preferences: {connection.hostPreferenceKey: client.insecureHostURI});
+    await startSignIn(tester, harness);
+    expect(Uri.parse(harness.mockBrowser.visitedURLs.single).origin, equals(client.secureHostURI));
+
+    harness.mockBrowser.completeSignIn('polaris://sso?code=${client.ssoCode}');
+    await tester.pumpAndSettle();
+    expect(startupPage, findsNothing);
+
+    final preferences = await SharedPreferences.getInstance();
+    expect(preferences.getString(authentication.tokenPreferenceKey), equals('0xC0FFEE'));
+    expect(preferences.getString(authentication.authHostPreferenceKey), equals(client.secureHostURI));
   });
 
   testWidgets('Reports codes the server does not accept', (WidgetTester tester) async {
@@ -150,7 +186,7 @@ void main() {
     await tester.pump();
 
     expect(harness.mockHTTPClient.ssoCodeExchanges.length, equals(1));
-    expect(find.widgetWithText(SnackBar, errorSSOFailed), findsOneWidget);
+    expect(find.textContaining('$errorSSOFailed: the server did not accept the sign-in'), findsOneWidget);
     expect(startupPage, findsOneWidget);
     expect(ssoButton, findsOneWidget);
     final preferences = await SharedPreferences.getInstance();

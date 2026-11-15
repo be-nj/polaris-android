@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:developer' as developer;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:polaris/core/client/api/api_client.dart';
 import 'package:polaris/core/client/api/v8_dto.dart';
@@ -58,6 +59,10 @@ class Manager extends ChangeNotifier {
   String? get token => _token;
   String? _username;
   String? get username => _username;
+  String? _ssoFailureReason;
+
+  /// Explains the last [Error.ssoFailed], for troubleshooting.
+  String? get ssoFailureReason => _ssoFailureReason;
 
   Manager({
     required this.httpClient,
@@ -156,43 +161,51 @@ class Manager extends ChangeNotifier {
     if (_state != State.unauthenticated) {
       throw Error.authenticationAlreadyInProgress;
     }
+    _ssoFailureReason = null;
     final host = connectionManager.url;
     if (host == null || !provider.loginURL.startsWith('/')) {
+      _ssoFailureReason = 'the server did not say where to sign in';
       throw Error.ssoFailed;
     }
 
     _setState(State.authenticating);
+    final codeVerifier = sso.makeCodeVerifier();
+    final codeChallenge = sso.makeCodeChallenge(codeVerifier);
+    final loginURL = Uri.parse(host + provider.loginURL).replace(queryParameters: {'code_challenge': codeChallenge});
+
+    final String callbackURL;
+    try {
+      callbackURL = await browser.authenticate(loginURL.toString());
+    } on sso.CancelledException {
+      _setState(State.unauthenticated);
+      return false;
+    } catch (e) {
+      developer.log("Error while signing in with the web browser", error: e);
+      throw _failSSO('the web browser reported an error: ${_describe(e)}');
+    }
+
+    final code = sso.readCode(callbackURL);
+    if (code == null) {
+      final uri = Uri.tryParse(callbackURL);
+      throw _failSSO('the web browser came back with an unexpected link (${uri?.scheme}://${uri?.host})');
+    }
+    if (connectionManager.url != host) {
+      throw _failSSO('the server connection changed while signing in');
+    }
+
     Authorization authorization;
     try {
-      final codeVerifier = sso.makeCodeVerifier();
-      final codeChallenge = sso.makeCodeChallenge(codeVerifier);
-      final loginURL = Uri.parse(host + provider.loginURL).replace(queryParameters: {'code_challenge': codeChallenge});
-
-      final String callbackURL;
-      try {
-        callbackURL = await browser.authenticate(loginURL.toString());
-      } on sso.CancelledException {
-        _setState(State.unauthenticated);
-        return false;
-      }
-
-      final code = sso.readCode(callbackURL);
-      if (code == null || connectionManager.url != host) {
-        _setState(State.unauthenticated);
-        throw Error.ssoFailed;
-      }
-
       final guestClient = GuestClient(connectionManager: connectionManager, httpClient: httpClient);
       authorization = await guestClient.redeemSSOCode(code, codeVerifier);
-    } on Error {
-      rethrow;
     } on APIError catch (e) {
+      if (e == APIError.requestFailed) {
+        throw _failSSO('the server did not accept the sign-in');
+      }
       _setState(State.unauthenticated);
-      throw e == APIError.requestFailed ? Error.ssoFailed : e.toAuthenticationError();
+      throw e.toAuthenticationError();
     } catch (e) {
-      developer.log("Error during single sign-on", error: e);
-      _setState(State.unauthenticated);
-      throw Error.ssoFailed;
+      developer.log("Error while completing single sign-on", error: e);
+      throw _failSSO('the server could not be reached: ${_describe(e)}');
     }
 
     _setHost(host);
@@ -200,6 +213,19 @@ class Manager extends ChangeNotifier {
     _setToken(authorization.token);
     _setState(State.authenticated);
     return true;
+  }
+
+  Error _failSSO(String reason) {
+    _ssoFailureReason = reason;
+    _setState(State.unauthenticated);
+    return Error.ssoFailed;
+  }
+
+  String _describe(Object error) {
+    if (error is PlatformException) {
+      return [error.code, if (error.message != null) error.message].join(', ');
+    }
+    return error.runtimeType.toString();
   }
 
   bool isAuthenticated() {

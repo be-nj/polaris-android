@@ -21,6 +21,11 @@ class Browser implements sso.Browser {
     _pendingSignIn!.complete(callbackURL);
   }
 
+  /// The browser could not carry out the sign-in.
+  void failSignIn(Object error) {
+    _pendingSignIn!.completeError(error);
+  }
+
   /// The user closes the browser without signing in.
   void cancelSignIn() {
     _pendingSignIn!.completeError(sso.CancelledException());

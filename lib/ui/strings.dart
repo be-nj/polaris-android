@@ -9,7 +9,8 @@ const errorUnknown = 'An unknown error occurred.';
 const errorAlreadyConnecting = 'Please wait while the connection is being established.';
 const errorAlreadyAuthenticating = 'Please wait while the authentication is in progress.';
 const errorIncorrectCredentials = 'Incorrect username or password.';
-const errorSSOFailed = 'Single sign-on could not be completed.';
+const errorSSOFailed = 'Single sign-on could not be completed';
+String errorSSOFailedBecause(String? reason) => reason == null ? '$errorSSOFailed.' : '$errorSSOFailed: $reason.';
 const retryButtonLabel = 'RETRY';
 
 // Startup

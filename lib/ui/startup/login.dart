@@ -121,7 +121,7 @@ class _LoginFormState extends State<LoginForm> {
         errorText = errorIncorrectCredentials;
         break;
       case authentication.Error.ssoFailed:
-        errorText = errorSSOFailed;
+        errorText = errorSSOFailedBecause(_authenticationManager.ssoFailureReason);
         break;
       case authentication.Error.requestFailed:
         errorText = errorRequestFailed;

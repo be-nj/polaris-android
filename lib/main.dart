@@ -15,6 +15,7 @@ import 'package:polaris/core/client/app_client.dart';
 import 'package:polaris/core/client/offline_client.dart';
 import 'package:polaris/core/connection.dart' as connection;
 import 'package:polaris/core/download.dart' as download;
+import 'package:polaris/core/media_library.dart';
 import 'package:polaris/core/pin.dart' as pin;
 import 'package:polaris/core/playlist.dart';
 import 'package:polaris/core/prefetch.dart' as prefetch;
@@ -131,6 +132,14 @@ Future _registerSingletons() async {
     settingsManager: settingsManager,
   );
   final browserModel = BrowserModel(connectionManager: connectionManager);
+  audioHandler.attachMediaLibrary(MediaLibrary(
+    connectionManager: connectionManager,
+    authenticationManager: authenticationManager,
+    appClient: appClient,
+    collectionCache: collectionCache,
+    playlist: playlist,
+    audioPlayer: audioPlayer,
+  ));
 
   // TODO Needs some logic to recover from app restart while audio service is still running (?)
 

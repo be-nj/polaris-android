@@ -142,3 +142,11 @@ const numberOfSongsToPreloadDescription =
 const cacheSize = 'Cache size';
 const cacheSizeDescription =
     'This setting controls how much space Polaris is allowed to use to store recently used audio and image files.\nMusic in the queue, and music added to Offline Music do not count towards this limit.';
+
+// Android Auto
+const autoRecentlyAdded = 'Recently Added';
+const autoRandom = 'Random';
+const autoArtists = 'Artists';
+const autoPlaylists = 'Playlists';
+const autoFiles = 'Files';
+const autoPlayAll = 'Play All';

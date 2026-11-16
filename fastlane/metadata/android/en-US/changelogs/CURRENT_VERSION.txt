@@ -1,2 +1,3 @@
 - 🆕 All context menus now have a `Play Now` option to replace the entire queue with the selected songs.
 - 🆕 The `Playlist lookahead` setting can now be set as high as 20 or 50 songs.
+- 🆕 Polaris now appears in the Android Auto app launcher, with a browsable library (recently added, random albums, artists, playlists, files) and voice search.
